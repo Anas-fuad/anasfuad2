@@ -1,0 +1,27 @@
+[Unit]
+Description=Tomcat{{ tomcat_version }} - instance %i
+After=syslog.target network.target
+
+[Service]
+Type=forking
+
+User=tomcat
+Group=tomcat
+
+Environment=LANG={{ system_locale }}
+Environment=CATALINA_HOME=/usr/share/tomcat{{ tomcat_version }}
+Environment=CATALINA_TMPDIR=/srv/tomcat/%i/temp
+Environment=CATALINA_PID=/run/tomcat/%i.pid
+PIDFile=/run/tomcat/%i.pid
+
+EnvironmentFile=/etc/default/tomcat-%i
+PassEnvironment=JAVA_OPTS LANG
+
+ExecStart={{ tomcat_basedir }}/%i/bin/startup.sh
+ExecStop={{ tomcat_basedir }}/%i/bin/shutdown.sh
+
+SyslogIdentifier=tomcat{{ tomcat_version }}-%i
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

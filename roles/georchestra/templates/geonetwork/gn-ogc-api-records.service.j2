@@ -1,0 +1,16 @@
+[Unit]
+Description=geOrchestra gn-ogc-api-records webservice
+After=syslog.target
+
+[Service]
+User=www-data
+ExecStart=/usr/lib/jvm/{{ java_version }}/bin/java {% if "17" in java_version %}--add-exports=java.naming/com.sun.jndi.ldap=ALL-UNNAMED {% endif %}-Dspring.config.location=/etc/georchestra/geonetwork/microservices/ogc-api-records/config.yml -jar /usr/share/lib/gn-ogc-api-records.jar
+Environment=SPRING_PROFILES_ACTIVE=standalone
+Environment=JAVA_OPTS=-Dfile.encoding=UTF-8
+Environment=LANG={{ system_locale }}
+SuccessExitStatus=143
+StandardOutput=append:{{ logs_basedir }}/gn-ogc-api-records.log
+StandardError=append:{{ logs_basedir }}/gn-ogc-api-records.log
+
+[Install]
+WantedBy=multi-user.target

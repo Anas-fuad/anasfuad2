@@ -1,0 +1,20 @@
+JAVA_HOME=/usr/lib/jvm/{{ java_version }}
+JRE_HOME=/usr/lib/jvm/{{ java_version }}
+
+JAVA_OPTS="-Djava.awt.headless=true \
+	-Xms{{ tomcat_instances.geoserver.xms }} \
+	-Xmx{{ tomcat_instances.geoserver.xmx }} \
+{% if "17" in java_version %}
+	--add-exports=java.naming/com.sun.jndi.ldap=ALL-UNNAMED \
+{% endif %}
+	-Dgeorchestra.datadir={{ georchestra.datadir.path }} \
+	-DGEOSERVER_DATA_DIR={{ geoserver.datadir.path }} \
+	-DGEOWEBCACHE_CACHE_DIR={{ geowebcache_datadir }} \
+	-DGEOSERVER_CSRF_WHITELIST={{ georchestra.fqdn }} \
+	-Dfile.encoding=UTF8 \
+	-Djavax.servlet.request.encoding=UTF-8 \
+	-Djavax.servlet.response.encoding=UTF-8 \
+	-Djava.library.path=/usr/lib/jni:/opt/libjpeg-turbo/lib64/ \
+	-server \
+	-XX:SoftRefLRUPolicyMSPerMB=36000 \
+	-XX:NewRatio=2"

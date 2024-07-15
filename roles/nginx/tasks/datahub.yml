@@ -1,0 +1,28 @@
+---
+- name: Fetch the datahub archive
+  get_url:
+    url: "{{ datahub.url }}"
+    dest: /var/www/georchestra/htdocs/datahub.zip
+
+- name: Unzip the archive
+  unarchive:
+    src: /var/www/georchestra/htdocs/datahub.zip
+    dest: /var/www/georchestra/htdocs/
+    remote_src: true
+
+- name: Remove the downloaded archive
+  file:
+    path: /var/www/georchestra/htdocs/datahub.zip
+    state: absent
+
+- name: set base url in index.html
+  replace:
+    path: /var/www/georchestra/htdocs/datahub/index.html
+    regexp: <base href="/">
+    replace: <base href="/datahub/">
+
+- name: add geor-header webcomponent in index.html
+  lineinfile:
+    path: /var/www/georchestra/htdocs/datahub/index.html
+    insertafter: <body>
+    line: "<script src='https://cdn.jsdelivr.net/gh/georchestra/header@dist/header.js'></script><geor-header active-app='datahub' legacy-header='false' legacy-url='/header/' style='height:90px'></geor-header>"

@@ -1,0 +1,63 @@
+---
+- name: setting locale
+  locale_gen:
+    name: "{{ system_locale }}"
+    state: present
+
+- name: install sudo
+  apt:
+    name: sudo
+    state: present
+
+- name: installing dependencies
+  apt:
+    pkg: postgis
+    state: present
+    update_cache: true
+
+- name: install python-psycopg2 for ansible psql modules
+  apt:
+    name: python3-psycopg2
+    state: present
+
+- name: create georchestra user
+  become: true
+  become_user: postgres
+  postgresql_user:
+    name: "{{ georchestra.db.user }}"
+    password: "{{ georchestra.db.pass }}"
+    encrypted: true
+
+- name: create georchestra main database
+  become: true
+  become_user: postgres
+  postgresql_db:
+    name: "{{ georchestra.db.name }}"
+    owner: "{{ georchestra.db.user }}"
+    template: template0
+    lc_collate: en_US.utf8  # add this for it to work 
+    lc_ctype: en_US.utf8  # add this for it to work 
+    encoding: UTF8
+
+- import_tasks: geonetwork.yml
+  become: true
+  become_user: postgres
+  tags: postgresql_geonetwork
+
+- import_tasks: geofence.yml
+  become: true
+  become_user: postgres
+  tags: postgresql_geofence
+
+- import_tasks: other_schemas.yml
+  become: true
+  become_user: postgres
+  tags: postgresql_other_schemas
+
+- import_tasks: cadastrapp.yml
+  tags: postgresql_cadastrapp
+  when: cadastrapp.enabled
+
+- import_tasks: clean.yml
+  tags: [cleanup, postgresql_cleanup]
+  when: cleanup is defined

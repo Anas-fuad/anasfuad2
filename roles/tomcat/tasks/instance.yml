@@ -1,0 +1,53 @@
+---
+- name: create instance {{ item.key }}
+  command: >
+    tomcat{{ tomcat_version }}-instance-create -p {{ item.value.port }} -c {{ item.value.control_port }} {{ tomcat_basedir }}/{{ item.key }}
+  args:
+    creates: "{{ tomcat_basedir }}/{{ item.key }}"
+  with_dict: "{{ tomcat_instances }}"
+
+- name: symlink policy.d dir
+  file:
+    src: /etc/tomcat{{ tomcat_version }}/policy.d/
+    dest: "{{ tomcat_basedir }}/{{ item.key }}/conf/policy.d"
+    state: link
+  with_dict: "{{ tomcat_instances }}"
+
+- name: recursively fix dirs ownership
+  file:
+    name: "{{ tomcat_basedir }}/{{ item.0 }}/{{ item.1 }}"
+    state: directory
+    recurse: true
+    owner: tomcat
+  with_nested:
+    - "{{ tomcat_instances | list }}"
+    - [logs, temp, conf, work, webapps]
+
+- name: install instance config in /etc/default
+  tags: tomcat_config
+  template:
+    src: config-{{ item.key }}.j2
+    dest: /etc/default/tomcat-{{ item.key }}
+  with_dict: "{{ tomcat_instances }}"
+
+- name: install instance connector
+  #tags: tomcat_config
+  template:
+    src: server-{{ item.key }}.xml.j2
+    dest: "{{ tomcat_basedir }}/{{ item.key }}/conf/server.xml"
+  with_dict: "{{ tomcat_instances }}"
+
+- name: add the jakarta loader for tomcat10 compat
+  lineinfile:
+    dest: "{{ tomcat_basedir }}/{{ item.key }}/conf/context.xml"
+    insertafter: <Context>
+    line: <Loader jakartaConverter="TOMCAT"/>
+    state: present
+  with_dict: "{{ tomcat_instances }}"
+  when: tomcat_version == 10
+
+- name: enable instance
+  systemd:
+    name: tomcat@{{ item.key }}
+    enabled: true
+  with_dict: "{{ tomcat_instances }}"

@@ -1,0 +1,82 @@
+---
+- name: ensure GPG is installed
+  apt:
+    name: gpg
+    state: present
+
+- name: setup wtf lts repokey for tomcat9 (deb822 only available in ansible 2.15)
+  tags: tomcat_apt_repo
+  get_url:
+    url: http://www.mirbsd.org/~tg/Debs/sources.txt/wtflts-bookworm.sources
+    dest: /etc/apt/sources.list.d/wtflts-bookworm.sources
+  when: tomcat_version == 9
+
+- name: installing dependencies
+  apt:
+    pkg:
+      - tomcat{{ tomcat_version }}
+      - tomcat{{ tomcat_version }}-user # needed for create-instance script
+      - tomcat-jakartaee-migration
+      - libtcnative-1 # APR native libs
+      - unzip # for unzipping artifacts from github actions
+    state: present
+    update_cache: true
+- name: disable default instance
+  service:
+    name: tomcat{{ tomcat_version }}
+    state: stopped
+    enabled: false
+
+- name: link tomcat9 to 10 migration jar
+  file:
+    src: /usr/share/tomcat-jakartaee-migration/lib/jakartaee-migration-1.0.6-shaded.jar
+    dest: /usr/share/tomcat10/lib/jakartaee-migration-1.0.6-shaded.jar
+    state: link
+  when: tomcat_version == 10
+
+- name: template tmpfiles.d for pidfile
+  tags: systemd_unit
+  template:
+    src: tomcat.conf.j2
+    dest: /etc/tmpfiles.d/tomcat.conf
+  register: tomcat_piddir
+
+- name: add fqdn to /etc/hosts
+  lineinfile:
+    dest: /etc/hosts
+    line: 127.0.0.1 {{ georchestra.fqdn }}
+
+- name: create temp dir
+  tags: systemd_unit
+  command: systemd-tmpfiles  --prefix=/run/tomcat --create
+  when: tomcat_piddir.changed
+
+- name: template systemd unit
+  tags: systemd_unit
+  template:
+    src: tomcat.service.j2
+    dest: /etc/systemd/system/tomcat@.service
+
+- name: reload systemd so that it finds the new unit
+  tags: systemd_unit
+  systemd:
+    daemon-reload: true
+    name: tomcat@.service
+
+- name: disable assistive_technologies (requires non-headless jdk)
+  lineinfile:
+    dest: /etc/java-8-openjdk/accessibility.properties
+    line: assistive_technologies=org.GNOME.Accessibility.AtkWrapper
+    state: absent
+
+- name: create tomcat_basedir
+  file:
+    name: "{{ tomcat_basedir }}"
+    state: directory
+
+- name: create common logdir
+  file:
+    path: "{{ logs_basedir }}"
+    state: directory
+    owner: tomcat
+    group: tomcat

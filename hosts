@@ -1,0 +1,2 @@
+localhost ansible_connection=local
+# To deploy to a remote node, put your IP above, leaving the "mygeorchestra" string as is
